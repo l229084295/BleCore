@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothGattService
 import android.graphics.Color
 import android.util.Log
 import android.util.SparseArray
+import androidx.lifecycle.viewModelScope
 import com.bhm.ble.BleManager
 import com.bhm.ble.attribute.BleOptions
 import com.bhm.ble.callback.BleConnectCallback
@@ -15,22 +16,35 @@ import com.bhm.ble.device.BleDevice
 import com.bhm.ble.utils.BleLogger
 import com.bhm.ble.utils.BleUtil
 import com.bhm.demo.R
+import com.bhm.demo.storage.entity.Door
 import com.bhm.demo.utils.ByteUtils
 import com.bhm.support.sdk.common.BaseViewModel
 import com.blankj.utilcode.util.ColorUtils
 import com.blankj.utilcode.util.EncryptUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Locale
 
-class OpenDoorVewModel(val app: Application) : BaseViewModel(app) {
+class OpenDoorVewModel(val app: Application) : MyBaseViewModel(app) {
 
     private val messageMutableStateFlow = MutableStateFlow(
         Message("")
     )
+    private val doorMutableStateFlow = MutableStateFlow(
+        listOf<Door>()
+    )
+
+    val doorStateFlow: StateFlow<List<Door>> = doorMutableStateFlow
 
     val messageStateFlow: StateFlow<Message> = messageMutableStateFlow
+
+    private val deleteMutableStateFlow = MutableStateFlow(
+        0
+    )
+    val deleteStateFlow = deleteMutableStateFlow
 
     private var data = byteArrayOf()
 
@@ -53,6 +67,26 @@ class OpenDoorVewModel(val app: Application) : BaseViewModel(app) {
             onStateOff {
                 messageMutableStateFlow.value = Message("初始化...")
             }
+        }
+    }
+
+    fun getLocalDoors() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val doors = dbRepository.DoorDao().getDoors()
+                doorMutableStateFlow.value = doors
+            } catch (_: Exception) {
+
+            }
+        }
+    }
+
+    fun deleteDoor(door: Door) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                dbRepository.DoorDao().delete(door)
+                deleteStateFlow.value = 1
+            }catch (_:Exception){}
         }
     }
 
@@ -106,8 +140,8 @@ class OpenDoorVewModel(val app: Application) : BaseViewModel(app) {
         }
         onConnectSuccess { device, gatt ->
             messageMutableStateFlow.value = Message("连接成功(${device.deviceAddress})")
-            data = ByteUtils.hexStr2Bytes(createOpenDoorData(device.deviceName ?: ""))
             try {
+                data = ByteUtils.hexStr2Bytes(createOpenDoorData(device.deviceName ?: ""))
                 for (g in gatt!!.services) { //轮询蓝牙下的服务
                     val uuid = g.uuid.toString().uppercase(Locale.getDefault())
                     sendOpenDoorMessage("轮询蓝牙服务uuid：$uuid", Color.parseColor("#f43e06"))

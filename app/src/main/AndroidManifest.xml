@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <application
-            android:name="com.bhm.support.sdk.common.BaseApplication"
+            android:name=".MyApp"
             android:allowBackup="true"
             android:fullBackupContent="@xml/backup_rules"
             tools:targetApi="31"
@@ -26,6 +26,7 @@
         </activity>
         <activity android:name="com.bhm.demo.ui.OptionSettingActivity" />
         <activity android:name="com.bhm.demo.ui.DetailOperateActivity" />
+        <activity android:name=".ui.BleScanActivity"/>
     </application>
 
 </manifest>

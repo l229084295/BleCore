@@ -8,15 +8,18 @@ import android.text.TextPaint
 import android.text.style.CharacterStyle
 import android.text.style.UpdateAppearance
 import androidx.annotation.ColorInt
+import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.lifecycleScope
 import com.bhm.ble.utils.BleLogger
 import com.bhm.demo.BaseActivity
 import com.bhm.demo.R
 import com.bhm.demo.constants.LOCATION_PERMISSION
 import com.bhm.demo.databinding.ActivityOpenDoorBinding
+import com.bhm.demo.storage.entity.Door
 import com.bhm.demo.vm.OpenDoorVewModel
 import com.blankj.utilcode.util.SpanUtils
 import com.blankj.utilcode.util.TimeUtils
+import com.blankj.utilcode.util.ToastUtils
 import kotlinx.coroutines.launch
 import org.angmarch.views.SpinnerTextFormatter
 import java.util.Date
@@ -24,18 +27,21 @@ import java.util.Date
 
 class OpenDoorActivity : BaseActivity<OpenDoorVewModel, ActivityOpenDoorBinding>() {
 
-    private val doorList = arrayListOf(
-        Door("21:DC:AA:00:94:69", "四单元"),
-        Door("FE:19:EC:00:14:07", "小区门"),
+    private val defaultDoors = arrayListOf(
+        Door(mac = "69:94:00:AA:DC:21", deviceName = "21DCAA009469", name = "四单元"),
+        Door(mac = "FE:19:EC:00:14:07", deviceName = "FE19EC001407", name = "小区门"),
     )
 
-    private var currentDoor = doorList[0]
+    private val doorList = arrayListOf<Door>()
+
+    private var currentDoor = defaultDoors[0]
 
     override fun createViewModel() = OpenDoorVewModel(application)
 
 
     override fun initData() {
         viewModel.initBle()
+        doorList.addAll(defaultDoors)
         viewBinding.apply {
             val textFormat1 = MySpinnerTextFormat()
             doors.setSpinnerTextFormatter(textFormat1)
@@ -55,6 +61,25 @@ class OpenDoorActivity : BaseActivity<OpenDoorVewModel, ActivityOpenDoorBinding>
                     }
                 )
             }
+            openDoor.setOnLongClickListener {
+                defaultDoors.forEach{
+                    if (it.mac == currentDoor.mac){
+                        ToastUtils.showShort("当前选择的门不能被删除！")
+                        return@setOnLongClickListener true
+                    }
+                }
+                AlertDialog.Builder(this@OpenDoorActivity)
+                    .setTitle("是否删除当前选择的门")
+                    .setNegativeButton("取消") { _, _ ->
+                    }
+                    .setPositiveButton("删除") { _, _ ->
+                        viewModel.deleteDoor(currentDoor)
+                    }.create().show()
+                return@setOnLongClickListener true
+            }
+            setting.setOnClickListener {
+                BleScanActivity.start(this@OpenDoorActivity)
+            }
         }
     }
 
@@ -63,6 +88,24 @@ class OpenDoorActivity : BaseActivity<OpenDoorVewModel, ActivityOpenDoorBinding>
             //连接设备后 刷新列表
             viewModel.messageStateFlow.collect {
                 addMessage(it.msg, it.color, it.textSize)
+            }
+        }
+
+        lifecycleScope.launch {
+            viewModel.doorStateFlow.collect {
+                doorList.clear()
+                doorList.addAll(defaultDoors)
+                doorList.addAll(it)
+                currentDoor = doorList[0]
+                viewBinding.doors.attachDataSource(doorList)
+                viewBinding.doors.selectedIndex = 0
+            }
+        }
+        lifecycleScope.launch {
+            viewModel.deleteStateFlow.collect{
+                if (it == 1){
+                    viewModel.getLocalDoors()
+                }
             }
         }
     }
@@ -105,10 +148,6 @@ class OpenDoorActivity : BaseActivity<OpenDoorVewModel, ActivityOpenDoorBinding>
         }
     }
 
-    data class Door(
-        val mac: String = "",
-        val name: String = ""
-    )
 
     class MySpinnerTextFormat : SpinnerTextFormatter<Any> {
         override fun format(item: Any?): Spannable {
@@ -126,5 +165,10 @@ class OpenDoorActivity : BaseActivity<OpenDoorVewModel, ActivityOpenDoorBinding>
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.getLocalDoors()
     }
 }

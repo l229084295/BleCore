@@ -1,6 +1,8 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
+    id("com.google.devtools.ksp")
+    id 'androidx.room'
 }
 
 android {
@@ -12,15 +14,32 @@ android {
         minSdk 24
         targetSdk 34
         versionCode 214
-        versionName "2.1.4"
+        versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+    signingConfigs {
+        create("release") {
+            storeFile = file("../kmk.jks")
+            storePassword = "km123456"
+            keyAlias = "km"
+            keyPassword = "km123456"
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
+            enableV4Signing = true
+        }
     }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
+        }
+        debug {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
         }
     }
     compileOptions {
@@ -32,6 +51,9 @@ android {
     }
     buildFeatures {
         viewBinding true
+    }
+    room {
+        schemaDirectory("$projectDir/schemas")
     }
 }
 
@@ -47,4 +69,10 @@ dependencies {
     implementation project(":support")
     implementation 'com.github.arcadefire:nice-spinner:1.4.4'
     implementation 'com.blankj:utilcodex:1.31.1'
+
+    //Jetpack Room
+    def roomVersion = "2.6.1"
+    api("androidx.room:room-runtime:$roomVersion")
+    api("androidx.room:room-ktx:$roomVersion")
+    ksp("androidx.room:room-compiler:$roomVersion")
 }
