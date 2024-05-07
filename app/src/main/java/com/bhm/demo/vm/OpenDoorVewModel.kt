@@ -47,6 +47,7 @@ class OpenDoorVewModel(val app: Application) : MyBaseViewModel(app) {
     val deleteStateFlow = deleteMutableStateFlow
 
     private var data = byteArrayOf()
+    private var currentDeviceName = ""
 
     /**
      * 初始化蓝牙组件
@@ -93,8 +94,9 @@ class OpenDoorVewModel(val app: Application) : MyBaseViewModel(app) {
     /**
      * 开始连接
      */
-    fun connect(address: String) {
-        connect(BleManager.get().buildBleDeviceByDeviceAddress(address))
+    fun connect(door: Door) {
+        currentDeviceName = door.deviceName
+        connect(BleManager.get().buildBleDeviceByDeviceAddress(door.mac))
     }
 
     /**
@@ -139,9 +141,9 @@ class OpenDoorVewModel(val app: Application) : MyBaseViewModel(app) {
             )
         }
         onConnectSuccess { device, gatt ->
-            messageMutableStateFlow.value = Message("连接成功(${device.deviceAddress})")
+            messageMutableStateFlow.value = Message("连接成功:(mac:${device.deviceAddress},deviceName:${device.deviceName})")
             try {
-                data = ByteUtils.hexStr2Bytes(createOpenDoorData(device.deviceName ?: ""))
+                data = ByteUtils.hexStr2Bytes(createOpenDoorData(currentDeviceName))
                 for (g in gatt!!.services) { //轮询蓝牙下的服务
                     val uuid = g.uuid.toString().uppercase(Locale.getDefault())
                     sendOpenDoorMessage("轮询蓝牙服务uuid：$uuid", Color.parseColor("#f43e06"))

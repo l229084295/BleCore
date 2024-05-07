@@ -55,7 +55,7 @@ class OpenDoorActivity : BaseActivity<OpenDoorVewModel, ActivityOpenDoorBinding>
                 requestPermission(
                     LOCATION_PERMISSION,
                     {
-                        viewModel.connect(currentDoor.mac)
+                        viewModel.connect(currentDoor)
                     }, {
                         BleLogger.w("缺少定位权限")
                     }
