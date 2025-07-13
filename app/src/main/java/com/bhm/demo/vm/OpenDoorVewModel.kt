@@ -21,6 +21,7 @@ import com.bhm.demo.utils.ByteUtils
 import com.bhm.support.sdk.common.BaseViewModel
 import com.blankj.utilcode.util.ColorUtils
 import com.blankj.utilcode.util.EncryptUtils
+import com.blankj.utilcode.util.LogUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -87,7 +88,8 @@ class OpenDoorVewModel(val app: Application) : MyBaseViewModel(app) {
             try {
                 dbRepository.DoorDao().delete(door)
                 deleteStateFlow.value = 1
-            }catch (_:Exception){}
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -300,4 +302,61 @@ class OpenDoorVewModel(val app: Application) : MyBaseViewModel(app) {
         val color: Int = ColorUtils.getColor(R.color.colorPrimary),
         val textSize: Int = 14
     )
+
+    companion object {
+        /**
+         * 生成开门数据
+         *
+         * @param macAddress
+         * @return
+         */
+        fun createOpenDoorData(macAddress: String): String {
+            var data = ""
+            val y: String
+            val mon: String
+            val d: String
+            val h: String
+            val m: String
+            val c: Calendar = Calendar.getInstance()
+            val year: Int = c.get(Calendar.YEAR)
+            val month: Int = c.get(Calendar.MONTH) + 1
+            val day: Int = c.get(Calendar.DAY_OF_MONTH)
+            val hours: Int = c.get(Calendar.HOUR_OF_DAY)
+            val minutes: Int = c.get(Calendar.MINUTE)
+            y = year.toString()
+            mon = time_0(month)
+            d = time_0(day)
+            h = time_0(hours)
+            m = time_0(minutes)
+            val timeStr: String = y.substring(2) + mon + d + h + m
+            val key = macAddress + timeStr + "55AA5A5AA5"
+            val content = timeStr + macAddress.substring(6)
+            val param = "30" + cryptByDes(key, content).substring(0, 16) + timeStr + "FA34DD0001"
+            var crc = 0
+            var i = 0
+            while (i < param.length - 1) {
+                crc = crc xor param.substring(i, i + 2).toInt(16)
+                i += 2
+            }
+            data = param + Integer.toString(crc, 16)
+            return data.uppercase(Locale.getDefault())
+        }
+
+        private fun time_0(timeValue: Int): String {
+            return if (timeValue > 10) timeValue.toString() else "0$timeValue"
+        }
+
+        private fun cryptByDes(key: String, content: String): String {
+            return EncryptUtils.encrypt3DES2HexString(
+                ByteUtils.hexStr2Bytes(content),
+                ByteUtils.hexStr2Bytes(key),
+                "DESede/ECB/PKCS5Padding",
+                null
+            )
+        }
+
+        fun test() {
+            LogUtils.d("加密后：" + createOpenDoorData("21DCAA009469"))
+        }
+    }
 }
